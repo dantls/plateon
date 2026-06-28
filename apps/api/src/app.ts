@@ -6,6 +6,7 @@ import { jwtPlugin } from "./plugins/jwt.js";
 import { prismaPlugin } from "./plugins/prisma.js";
 import { sensiblePlugin } from "./plugins/sensible.js";
 import { healthRoutes } from "./routes/health.js";
+import { menuRoutes } from "./routes/menu.js";
 
 export function buildApp() {
   const app = fastify({
@@ -22,6 +23,7 @@ export function buildApp() {
   void app.register(prismaPlugin);
   void app.register(jwtPlugin);
   void app.register(healthRoutes);
+  void app.register(menuRoutes);
 
   return app;
 }
