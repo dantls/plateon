@@ -95,6 +95,38 @@ describe("Category routes", () => {
     });
   });
 
+  describe("GET /categories", () => {
+    it("GET /categories?restaurantId= returns categories for owner", async () => {
+      const user = await seedUser(app);
+      const restaurant = await seedRestaurant(app, user.id);
+      await seedCategory(app, restaurant.id, { name: "Drinks", order: 0 });
+      await seedCategory(app, restaurant.id, { name: "Mains", order: 1 });
+      const token = signOwnerToken(app, user.id, user.email);
+      const res = await app.inject({
+        method: "GET",
+        url: `/categories?restaurantId=${restaurant.id}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json<CategoryResponse[]>();
+      expect(body).toHaveLength(2);
+      expect(body[0].name).toBe("Drinks");
+    });
+
+    it("GET /categories?restaurantId= returns 403 for another owner", async () => {
+      const owner = await seedUser(app);
+      const other = await seedUser(app, { email: "other@test.com" });
+      const restaurant = await seedRestaurant(app, owner.id);
+      const token = signOwnerToken(app, other.id, other.email);
+      const res = await app.inject({
+        method: "GET",
+        url: `/categories?restaurantId=${restaurant.id}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+  });
+
   describe("DELETE /categories/:id", () => {
     it("deletes own category", async () => {
       const user = await seedUser(app);

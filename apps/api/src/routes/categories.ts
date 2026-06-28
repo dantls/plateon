@@ -12,6 +12,40 @@ const categorySchema = z.object({
 export function categoryRoutes(app: FastifyInstance): void {
   const server = app.withTypeProvider<ZodTypeProvider>();
 
+  server.get(
+    "/categories",
+    {
+      preHandler: [app.authenticate],
+      schema: {
+        querystring: z.object({ restaurantId: z.string().min(1) }),
+        response: {
+          200: z.array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              order: z.number(),
+              restaurantId: z.string(),
+            }),
+          ),
+        },
+      },
+    },
+    async (request, reply) => {
+      const { restaurantId } = request.query;
+      const restaurant = await app.prisma.restaurant.findUnique({
+        where: { id: restaurantId },
+      });
+      if (!restaurant || restaurant.ownerId !== request.user.sub) {
+        return reply.status(403).send({ error: "Forbidden" });
+      }
+      const categories = await app.prisma.category.findMany({
+        where: { restaurantId },
+        orderBy: { order: "asc" },
+      });
+      return reply.status(200).send(categories);
+    },
+  );
+
   server.post(
     "/categories",
     {
