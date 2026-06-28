@@ -1,3 +1,6 @@
 {
-  "enabledMcpjsonServers": ["shadcn", "playwright", "context7", "git"]
+  "enabledMcpjsonServers": ["shadcn", "playwright", "context7", "git"],
+  "enabledPlugins": {
+    "ponytail@ponytail": true
+  }
 }
