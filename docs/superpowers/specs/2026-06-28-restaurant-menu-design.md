@@ -84,14 +84,23 @@ model Dish {
 }
 
 model Ingredient {
-  id           String           @id @default(cuid())
-  namePt       String
-  nameEn       String
-  isAllergen   Boolean          @default(false)
+  id           String                  @id @default(cuid())
+  isAllergen   Boolean                 @default(false)
   dietaryTags  DietaryTag[]
   restaurantId String
-  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id])
+  restaurant   Restaurant              @relation(fields: [restaurantId], references: [id])
+  translations IngredientTranslation[]
   dishes       DishIngredient[]
+}
+
+model IngredientTranslation {
+  id           String     @id @default(cuid())
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  locale       String     // "pt", "en"
+  name         String
+
+  @@unique([ingredientId, locale])
 }
 
 model DishIngredient {
@@ -124,7 +133,7 @@ enum RestaurantStatus {
 
 **Key decisions:**
 - **Multi-tenancy:** each `Dish` and `Ingredient` carries a direct `restaurantId`. Enables tenant isolation checks without extra joins, and makes it trivial to move a dish between categories of the same restaurant.
-- **Ingredients:** bilingual (`namePt` / `nameEn`), allergen flag (`isAllergen`), and dietary tags (`VEGAN`, `VEGETARIAN`, `GLUTEN_FREE`, `LACTOSE_FREE`). Scoped per restaurant — owners manage their own ingredient list and reuse across dishes via `DishIngredient` join table.
+- **Ingredients:** name stored via `IngredientTranslation` table (`locale: "pt" | "en"`, `name: String`) — proper i18n pattern using `next-intl` on the UI. Allergen flag (`isAllergen`) and dietary tags (`VEGAN`, `VEGETARIAN`, `GLUTEN_FREE`, `LACTOSE_FREE`) sit on the parent `Ingredient`. Scoped per restaurant — owners manage their own ingredient list and reuse across dishes via `DishIngredient` join table.
 - Restaurant identified by `slug` in QR URL (`/menu/meu-restaurante`) — human-readable and stable
 - Only `available: true` dishes are returned to the public menu endpoint
 - Only `APPROVED` restaurants are served publicly
@@ -206,7 +215,7 @@ DATABASE_URL
 
 **Dish form fields:** name, description, price, photo (upload), category (select), available (switch), ingredients (multi-select from restaurant's ingredient list).
 
-**Ingredient form fields:** name in PT, name in EN, is allergen (toggle), dietary tags (multi-select: vegan, vegetarian, gluten-free, lactose-free).
+**Ingredient form fields:** name in PT (pt locale), name in EN (en locale), is allergen (toggle), dietary tags (multi-select: vegan, vegetarian, gluten-free, lactose-free). UI uses `next-intl` to detect the active locale and serve the correct translation on the public menu.
 
 **Photo upload:** `multipart/form-data` to Fastify using `@fastify/multipart`. Files stored in `uploads/` directory locally in phase 1 — designed to migrate to S3 without API contract changes. Returns a public URL.
 
