@@ -6,6 +6,7 @@ import { jwtPlugin } from "./plugins/jwt.js";
 import { prismaPlugin } from "./plugins/prisma.js";
 import { sensiblePlugin } from "./plugins/sensible.js";
 import { categoryRoutes } from "./routes/categories.js";
+import { dishRoutes } from "./routes/dishes.js";
 import { healthRoutes } from "./routes/health.js";
 import { menuRoutes } from "./routes/menu.js";
 import { restaurantRoutes } from "./routes/restaurants.js";
@@ -28,6 +29,7 @@ export function buildApp() {
   void app.register(menuRoutes);
   void app.register(restaurantRoutes);
   void app.register(categoryRoutes);
+  void app.register(dishRoutes);
 
   return app;
 }
