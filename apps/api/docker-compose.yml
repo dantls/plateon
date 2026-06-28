@@ -1,0 +1,14 @@
+services:
+  api:
+    build:
+      context: .
+      target: runner
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - CORS_ORIGIN=http://localhost:3000
+    restart: unless-stopped

@@ -1,0 +1,27 @@
+services:
+  web:
+    build:
+      context: ./apps/web
+      target: runner
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://api:3001
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ./apps/api
+      target: runner
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - CORS_ORIGIN=http://localhost:3000
+    restart: unless-stopped
