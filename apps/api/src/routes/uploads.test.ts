@@ -62,4 +62,63 @@ describe("POST /uploads", () => {
     const body = res.json<UploadResponse>();
     expect(body.url).toMatch(/^\/uploads\/.+\.png$/);
   });
+
+  it("rejects an html upload with 400", async () => {
+    const user = await seedUser(app);
+    const token = signOwnerToken(app, user.id, user.email);
+    const htmlFile = join(tmpdir(), "test-upload.html");
+    await writeFile(htmlFile, Buffer.from("<script>alert(1)</script>"));
+
+    const form = new FormData();
+    form.append("file", createReadStream(htmlFile), {
+      filename: "evil.html",
+      contentType: "text/html",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/uploads",
+      headers: { ...form.getHeaders(), authorization: `Bearer ${token}` },
+      payload: form,
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("rejects a disallowed mimetype with 400", async () => {
+    const user = await seedUser(app);
+    const token = signOwnerToken(app, user.id, user.email);
+
+    const form = new FormData();
+    form.append("file", createReadStream(tmpFile), {
+      filename: "dish.png",
+      contentType: "application/octet-stream",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/uploads",
+      headers: { ...form.getHeaders(), authorization: `Bearer ${token}` },
+      payload: form,
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("rejects a png with mismatched mimetype with 400", async () => {
+    const user = await seedUser(app);
+    const token = signOwnerToken(app, user.id, user.email);
+
+    const form = new FormData();
+    form.append("file", createReadStream(tmpFile), {
+      filename: "dish.png",
+      contentType: "image/jpeg",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/uploads",
+      headers: { ...form.getHeaders(), authorization: `Bearer ${token}` },
+      payload: form,
+    });
+    expect(res.statusCode).toBe(400);
+  });
 });

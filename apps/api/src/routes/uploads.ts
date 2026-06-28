@@ -9,6 +9,14 @@ import type { FastifyInstance } from "fastify";
 const UPLOADS_DIR = join(process.cwd(), "uploads");
 mkdirSync(UPLOADS_DIR, { recursive: true });
 
+const ALLOWED_MIME_BY_EXT: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
 export function uploadRoutes(app: FastifyInstance): void {
   void app.register(fastifyMultipart, {
     limits: { fileSize: 5 * 1024 * 1024 },
@@ -23,8 +31,13 @@ export function uploadRoutes(app: FastifyInstance): void {
         return reply.status(400).send({ error: "No file provided" });
       }
 
-      const ext = data.filename.split(".").pop() ?? "bin";
-      const filename = `${randomUUID()}.${ext}`;
+      const rawExt = (data.filename.split(".").pop() ?? "").toLowerCase();
+      const expectedMime = ALLOWED_MIME_BY_EXT[rawExt];
+      if (!expectedMime || data.mimetype !== expectedMime) {
+        return reply.status(400).send({ error: "Invalid file type" });
+      }
+
+      const filename = `${randomUUID()}.${rawExt}`;
       const filepath = join(UPLOADS_DIR, filename);
 
       await pipeline(data.file, createWriteStream(filepath));
