@@ -8,6 +8,7 @@ import { sensiblePlugin } from "./plugins/sensible.js";
 import { categoryRoutes } from "./routes/categories.js";
 import { dishRoutes } from "./routes/dishes.js";
 import { healthRoutes } from "./routes/health.js";
+import { ingredientRoutes } from "./routes/ingredients.js";
 import { menuRoutes } from "./routes/menu.js";
 import { restaurantRoutes } from "./routes/restaurants.js";
 
@@ -30,6 +31,7 @@ export function buildApp() {
   void app.register(restaurantRoutes);
   void app.register(categoryRoutes);
   void app.register(dishRoutes);
+  void app.register(ingredientRoutes);
 
   return app;
 }
