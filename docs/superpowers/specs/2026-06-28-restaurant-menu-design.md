@@ -54,6 +54,7 @@ model Restaurant {
   ownerId    String
   owner      User             @relation(fields: [ownerId], references: [id])
   categories Category[]
+  dishes     Dish[]
   createdAt  DateTime         @default(now())
 }
 
@@ -67,15 +68,17 @@ model Category {
 }
 
 model Dish {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  price       Decimal  @db.Decimal(10, 2)
-  imageUrl    String?
-  available   Boolean  @default(true)
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime @default(now())
+  id           String     @id @default(cuid())
+  name         String
+  description  String?
+  price        Decimal    @db.Decimal(10, 2)
+  imageUrl     String?
+  available    Boolean    @default(true)
+  categoryId   String
+  category     Category   @relation(fields: [categoryId], references: [id])
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  createdAt    DateTime   @default(now())
 }
 
 enum Role {
@@ -91,6 +94,7 @@ enum RestaurantStatus {
 ```
 
 **Key decisions:**
+- **Multi-tenancy:** each `Dish` carries both `categoryId` and `restaurantId`. The `restaurantId` on `Dish` enables direct tenant isolation checks without joining through `Category`, and makes it trivial to move a dish between categories of the same restaurant.
 - Restaurant identified by `slug` in QR URL (`/menu/meu-restaurante`) — human-readable and stable
 - Only `available: true` dishes are returned to the public menu endpoint
 - Only `APPROVED` restaurants are served publicly
