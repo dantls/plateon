@@ -6,12 +6,12 @@ const healthResponseSchema = z.object({
   timestamp: z.string(),
 });
 
-export async function healthRoutes(app: FastifyInstance) {
+export function healthRoutes(app: FastifyInstance) {
   app.get("/health", {
     schema: {
       response: { 200: healthResponseSchema },
     },
-    handler: async () => ({
+    handler: () => ({
       status: "ok" as const,
       timestamp: new Date().toISOString(),
     }),

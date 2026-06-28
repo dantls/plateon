@@ -2,6 +2,7 @@ import fastify from "fastify";
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 
 import { corsPlugin } from "./plugins/cors.js";
+import { prismaPlugin } from "./plugins/prisma.js";
 import { sensiblePlugin } from "./plugins/sensible.js";
 import { healthRoutes } from "./routes/health.js";
 
@@ -17,6 +18,7 @@ export function buildApp() {
 
   void app.register(corsPlugin);
   void app.register(sensiblePlugin);
+  void app.register(prismaPlugin);
   void app.register(healthRoutes);
 
   return app;

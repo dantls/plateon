@@ -1,8 +1,8 @@
-import { PrismaPg } from "@prisma/adapter-pg";
+import "@fastify/jwt";
+
 import type { FastifyInstance } from "fastify";
 
 import { buildApp } from "../app.js";
-import { PrismaClient } from "../generated/prisma/client.js";
 import type {
   Category,
   Dish,
@@ -49,7 +49,7 @@ export async function seedUser(
 ): Promise<User> {
   return app.prisma.user.create({
     data: {
-      email: overrides.email ?? `user-${Date.now()}@test.com`,
+      email: overrides.email ?? `user-${Date.now().toString()}@test.com`,
       role: overrides.role ?? "OWNER",
     },
   });
@@ -67,7 +67,7 @@ export async function seedRestaurant(
   return app.prisma.restaurant.create({
     data: {
       name: "Test Restaurant",
-      slug: overrides.slug ?? `test-${Date.now()}`,
+      slug: overrides.slug ?? `test-${Date.now().toString()}`,
       currency: overrides.currency ?? "BRL",
       status: overrides.status ?? "APPROVED",
       ownerId,

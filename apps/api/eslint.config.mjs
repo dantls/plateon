@@ -8,7 +8,9 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ["*.mjs", "*.mts", "prisma.config.ts"],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -28,6 +30,12 @@ export default tseslint.config(
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
+    },
+  },
+  {
+    files: ["*.config.*", "*.config.mjs", "*.config.mts"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
     },
   },
   {
