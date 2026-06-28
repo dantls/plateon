@@ -276,6 +276,38 @@ DATABASE_URL
 
 ---
 
+## Testing
+
+### API (Fastify) — Vitest + `app.inject()`
+
+Fastify's `inject()` runs routes in-process against a real test database (no mocks). Each test suite calls `buildApp()`, runs migrations against a dedicated test DB, and cleans up after.
+
+| Area | What to test |
+|---|---|
+| `GET /restaurants/:slug/menu` | Returns only `APPROVED` restaurants; excludes `available: false` dishes; correct ingredient locale |
+| Auth middleware | Protected routes return `401` with no token; `403` with wrong role |
+| OWNER (own) rule | Owner cannot read/write another restaurant's categories, dishes, or ingredients — returns `403` |
+| Admin approval | `PUT /restaurants/:id/status` succeeds for ADMIN, fails for OWNER |
+| Ingredient translations | Correct `locale` translation returned; missing locale falls back gracefully |
+| Upload | `POST /uploads` stores file and returns a valid URL |
+
+### Web (Next.js) — Vitest + RTL + Playwright
+
+| Layer | Tool | What to test |
+|---|---|---|
+| Components | Vitest + RTL | Dish card renders name, price formatted by currency; allergen/dietary icons shown; unavailable dishes hidden |
+| Back-office forms | Vitest + RTL | Ingredient form submits correct `pt-BR`/`en-AU` translations; dish form links to correct category |
+| Auth redirect | Vitest + RTL | Dashboard redirects to `/auth/signin` when unauthenticated |
+| Public menu (E2E) | Playwright | QR URL loads menu; tabs switch categories; 404 for unknown slug |
+| Back-office flow (E2E) | Playwright | Owner logs in → creates restaurant → adds category → adds dish with ingredients → QR code visible |
+| Admin flow (E2E) | Playwright | Admin logs in → approves restaurant → restaurant becomes publicly accessible |
+
+### Test database
+
+Both apps share `DATABASE_URL_TEST` in `.env.test`. CI runs `prisma migrate deploy` against the test DB before the suite. Each test file wraps mutations in a transaction and rolls back — no persistent state between tests.
+
+---
+
 ## Out of Scope (Phase 1)
 
 - Customer ordering
