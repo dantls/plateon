@@ -278,6 +278,8 @@ DATABASE_URL
 
 ## Testing
 
+**Approach: Test-Driven Development.** Tests are written before implementation code. Each feature is implemented only after its tests exist and fail for the right reason (red → green → refactor).
+
 ### API (Fastify) — Vitest + `app.inject()`
 
 Fastify's `inject()` runs routes in-process against a real test database (no mocks). Each test suite calls `buildApp()`, runs migrations against a dedicated test DB, and cleans up after.
