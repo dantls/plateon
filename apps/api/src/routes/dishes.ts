@@ -42,6 +42,11 @@ export function dishRoutes(app: FastifyInstance): void {
         return reply.status(403).send({ error: "Forbidden" });
       }
 
+      const category = await app.prisma.category.findUnique({ where: { id: request.body.categoryId } });
+      if (!category || category.restaurantId !== restaurantId) {
+        return reply.status(403).send({ error: "Forbidden" });
+      }
+
       const dish = await app.prisma.dish.create({
         data: {
           name: request.body.name,
@@ -85,6 +90,13 @@ export function dishRoutes(app: FastifyInstance): void {
       });
       if (!dish || dish.restaurant.ownerId !== ownerId) {
         return reply.status(403).send({ error: "Forbidden" });
+      }
+
+      if (request.body.categoryId !== undefined) {
+        const category = await app.prisma.category.findUnique({ where: { id: request.body.categoryId } });
+        if (!category || category.restaurantId !== dish.restaurantId) {
+          return reply.status(403).send({ error: "Forbidden" });
+        }
       }
 
       const updated = await app.prisma.dish.update({ where: { id }, data: request.body });

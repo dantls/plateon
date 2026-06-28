@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 
+import { Prisma } from "../generated/prisma/client.js";
+
 const categorySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -126,7 +128,17 @@ export function categoryRoutes(app: FastifyInstance): void {
         return reply.status(403).send({ error: "Forbidden" });
       }
 
-      await app.prisma.category.delete({ where: { id } });
+      try {
+        await app.prisma.category.delete({ where: { id } });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2003"
+        ) {
+          return reply.status(409).send({ error: "Category has dishes; remove them first" });
+        }
+        throw error;
+      }
       return reply.status(204).send();
     },
   );

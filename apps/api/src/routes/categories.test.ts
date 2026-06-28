@@ -5,6 +5,7 @@ import {
   cleanDb,
   createTestApp,
   seedCategory,
+  seedDish,
   seedRestaurant,
   seedUser,
   signOwnerToken,
@@ -153,6 +154,20 @@ describe("Category routes", () => {
         headers: { authorization: `Bearer ${token}` },
       });
       expect(res.statusCode).toBe(403);
+    });
+
+    it("returns 409 when deleting a category that has dishes", async () => {
+      const user = await seedUser(app);
+      const token = signOwnerToken(app, user.id, user.email);
+      const restaurant = await seedRestaurant(app, user.id);
+      const category = await seedCategory(app, restaurant.id);
+      await seedDish(app, category.id, restaurant.id);
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/categories/${category.id}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(409);
     });
   });
 });

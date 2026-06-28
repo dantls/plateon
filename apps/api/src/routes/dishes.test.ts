@@ -73,6 +73,26 @@ describe("Dish routes", () => {
       });
       expect(res.statusCode).toBe(403);
     });
+
+    it("returns 403 when categoryId belongs to a different restaurant", async () => {
+      const user = await seedUser(app);
+      const token = signOwnerToken(app, user.id, user.email);
+      const restaurantA = await seedRestaurant(app, user.id);
+      const restaurantB = await seedRestaurant(app, user.id);
+      const categoryB = await seedCategory(app, restaurantB.id);
+      const res = await app.inject({
+        method: "POST",
+        url: "/dishes",
+        headers: { authorization: `Bearer ${token}` },
+        payload: {
+          name: "Pasta",
+          price: "18.50",
+          categoryId: categoryB.id,
+          restaurantId: restaurantA.id,
+        },
+      });
+      expect(res.statusCode).toBe(403);
+    });
   });
 
   describe("PUT /dishes/:id", () => {
@@ -104,6 +124,23 @@ describe("Dish routes", () => {
         url: `/dishes/${dish.id}`,
         headers: { authorization: `Bearer ${token}` },
         payload: { available: false },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("returns 403 when repointing categoryId to another restaurant's category", async () => {
+      const user = await seedUser(app);
+      const token = signOwnerToken(app, user.id, user.email);
+      const restaurantA = await seedRestaurant(app, user.id);
+      const restaurantB = await seedRestaurant(app, user.id);
+      const categoryA = await seedCategory(app, restaurantA.id);
+      const categoryB = await seedCategory(app, restaurantB.id);
+      const dish = await seedDish(app, categoryA.id, restaurantA.id);
+      const res = await app.inject({
+        method: "PUT",
+        url: `/dishes/${dish.id}`,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { categoryId: categoryB.id },
       });
       expect(res.statusCode).toBe(403);
     });
