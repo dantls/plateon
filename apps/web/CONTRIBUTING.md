@@ -100,6 +100,22 @@ npm run e2e:ui        # Playwright interactive UI
 npm run e2e:debug     # Playwright debugger
 ```
 
+## AI Agent Behavior
+
+**Ponytail** — installed globally via `/plugin install ponytail@ponytail`
+
+Enforces a "lazy senior dev" coding ladder before writing any code:
+
+1. Does this need to exist? (YAGNI) → skip it
+2. Already in this codebase? → reuse it
+3. Stdlib does it? → use it
+4. Native platform feature? → use it
+5. Installed dependency covers it? → use it
+6. Can it be one line? → make it one line
+7. Only then: write the minimum that works
+
+Intentional simplifications are marked with a `ponytail:` comment naming the known ceiling and upgrade path.
+
 ## Claude Code MCPs
 
 Configured in `.mcp.json` (project root) and enabled in `.claude/settings.json`. Everything at project level — nothing in the user profile.
