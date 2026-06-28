@@ -46,13 +46,14 @@ model User {
 }
 
 model Restaurant {
-  id         String           @id @default(cuid())
-  name       String
-  slug       String           @unique
-  logoUrl    String?
-  status     RestaurantStatus @default(PENDING)
-  ownerId    String
-  owner      User             @relation(fields: [ownerId], references: [id])
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique
+  logoUrl     String?
+  currency    String           @default("BRL") // "BRL" | "AUD"
+  status      RestaurantStatus @default(PENDING)
+  ownerId     String
+  owner       User             @relation(fields: [ownerId], references: [id])
   categories  Category[]
   dishes      Dish[]
   ingredients Ingredient[]
@@ -97,7 +98,7 @@ model IngredientTranslation {
   id           String     @id @default(cuid())
   ingredientId String
   ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
-  locale       String     // "pt", "en"
+  locale       String     // "pt-BR", "en-AU"
   name         String
 
   @@unique([ingredientId, locale])
@@ -133,7 +134,8 @@ enum RestaurantStatus {
 
 **Key decisions:**
 - **Multi-tenancy:** each `Dish` and `Ingredient` carries a direct `restaurantId`. Enables tenant isolation checks without extra joins, and makes it trivial to move a dish between categories of the same restaurant.
-- **Ingredients:** name stored via `IngredientTranslation` table (`locale: "pt" | "en"`, `name: String`) — proper i18n pattern using `next-intl` on the UI. Allergen flag (`isAllergen`) and dietary tags (`VEGAN`, `VEGETARIAN`, `GLUTEN_FREE`, `LACTOSE_FREE`) sit on the parent `Ingredient`. Scoped per restaurant — owners manage their own ingredient list and reuse across dishes via `DishIngredient` join table.
+- **Markets:** Brazil (`pt-BR`, currency `BRL`) and Australia (`en-AU`, currency `AUD`). `Restaurant.currency` determines price formatting on the public menu. `next-intl` handles locale routing and message files.
+- **Ingredients:** name stored via `IngredientTranslation` table (`locale: "pt-BR" | "en-AU"`, `name: String`) — normalized i18n. Allergen flag (`isAllergen`) and dietary tags (`VEGAN`, `VEGETARIAN`, `GLUTEN_FREE`, `LACTOSE_FREE`) sit on the parent `Ingredient`. Scoped per restaurant — owners manage their own ingredient list and reuse across dishes via `DishIngredient` join table.
 - Restaurant identified by `slug` in QR URL (`/menu/meu-restaurante`) — human-readable and stable
 - Only `available: true` dishes are returned to the public menu endpoint
 - Only `APPROVED` restaurants are served publicly
@@ -215,7 +217,9 @@ DATABASE_URL
 
 **Dish form fields:** name, description, price, photo (upload), category (select), available (switch), ingredients (multi-select from restaurant's ingredient list).
 
-**Ingredient form fields:** name in PT (pt locale), name in EN (en locale), is allergen (toggle), dietary tags (multi-select: vegan, vegetarian, gluten-free, lactose-free). UI uses `next-intl` to detect the active locale and serve the correct translation on the public menu.
+**Ingredient form fields:** name in PT (`pt-BR`), name in EN (`en-AU`), is allergen (toggle), dietary tags (multi-select: vegan, vegetarian, gluten-free, lactose-free). UI uses `next-intl` to detect the active locale and serve the correct translation on the public menu.
+
+**Price formatting:** `Intl.NumberFormat` with the restaurant's `currency` field — `R$` for BRL, `A$` for AUD.
 
 **Photo upload:** `multipart/form-data` to Fastify using `@fastify/multipart`. Files stored in `uploads/` directory locally in phase 1 — designed to migrate to S3 without API contract changes. Returns a public URL.
 
