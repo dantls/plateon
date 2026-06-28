@@ -8,6 +8,7 @@ import { corsPlugin } from "./plugins/cors.js";
 import { jwtPlugin } from "./plugins/jwt.js";
 import { prismaPlugin } from "./plugins/prisma.js";
 import { sensiblePlugin } from "./plugins/sensible.js";
+import { adminRoutes } from "./routes/admin.js";
 import { categoryRoutes } from "./routes/categories.js";
 import { dishRoutes } from "./routes/dishes.js";
 import { healthRoutes } from "./routes/health.js";
@@ -33,6 +34,7 @@ export function buildApp() {
   void app.register(healthRoutes);
   void app.register(menuRoutes);
   void app.register(restaurantRoutes);
+  void app.register(adminRoutes);
   void app.register(categoryRoutes);
   void app.register(dishRoutes);
   void app.register(ingredientRoutes);
