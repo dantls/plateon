@@ -38,6 +38,11 @@
 #   docker-compose.yml              Runs API in isolation on port 3001
 #   node:22-alpine base             Non-root user fastify:nodejs uid/gid 1001
 #
+# MCP SERVERS (Claude Code — .mcp.json + .claude/settings.json)
+#   context7     npx @upstash/context7-mcp      Up-to-date docs (Fastify, Zod, Node.js)
+#   git          uvx mcp-server-git             Local git operations via MCP
+#   (shadcn and playwright omitted — not relevant for a backend API)
+#
 # STRUCTURE
 #   src/app.ts                      Fastify instance + Zod type provider
 #   src/server.ts                   Entry point (listen)
@@ -259,6 +264,30 @@ node -e "
   };
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
+
+# ── .mcp.json ─────────────────────────────────────────────────────────────────
+cat > .mcp.json << 'EOF'
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "."]
+    }
+  }
+}
+EOF
+
+# ── .claude/settings.json ─────────────────────────────────────────────────────
+mkdir -p .claude
+cat > .claude/settings.json << 'EOF'
+{
+  "enabledMcpjsonServers": ["context7", "git"]
+}
+EOF
 
 # ── source files ──────────────────────────────────────────────────────────────
 mkdir -p src/plugins src/routes
