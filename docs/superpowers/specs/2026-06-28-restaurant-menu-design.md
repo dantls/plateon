@@ -53,9 +53,10 @@ model Restaurant {
   status     RestaurantStatus @default(PENDING)
   ownerId    String
   owner      User             @relation(fields: [ownerId], references: [id])
-  categories Category[]
-  dishes     Dish[]
-  createdAt  DateTime         @default(now())
+  categories  Category[]
+  dishes      Dish[]
+  ingredients Ingredient[]
+  createdAt   DateTime         @default(now())
 }
 
 model Category {
@@ -68,17 +69,45 @@ model Category {
 }
 
 model Dish {
-  id           String     @id @default(cuid())
+  id           String          @id @default(cuid())
   name         String
   description  String?
-  price        Decimal    @db.Decimal(10, 2)
+  price        Decimal         @db.Decimal(10, 2)
   imageUrl     String?
-  available    Boolean    @default(true)
+  available    Boolean         @default(true)
   categoryId   String
-  category     Category   @relation(fields: [categoryId], references: [id])
+  category     Category        @relation(fields: [categoryId], references: [id])
   restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
-  createdAt    DateTime   @default(now())
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id])
+  ingredients  DishIngredient[]
+  createdAt    DateTime        @default(now())
+}
+
+model Ingredient {
+  id           String           @id @default(cuid())
+  namePt       String
+  nameEn       String
+  isAllergen   Boolean          @default(false)
+  dietaryTags  DietaryTag[]
+  restaurantId String
+  restaurant   Restaurant       @relation(fields: [restaurantId], references: [id])
+  dishes       DishIngredient[]
+}
+
+model DishIngredient {
+  dishId       String
+  ingredientId String
+  dish         Dish       @relation(fields: [dishId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@id([dishId, ingredientId])
+}
+
+enum DietaryTag {
+  VEGAN
+  VEGETARIAN
+  GLUTEN_FREE
+  LACTOSE_FREE
 }
 
 enum Role {
@@ -94,7 +123,8 @@ enum RestaurantStatus {
 ```
 
 **Key decisions:**
-- **Multi-tenancy:** each `Dish` carries both `categoryId` and `restaurantId`. The `restaurantId` on `Dish` enables direct tenant isolation checks without joining through `Category`, and makes it trivial to move a dish between categories of the same restaurant.
+- **Multi-tenancy:** each `Dish` and `Ingredient` carries a direct `restaurantId`. Enables tenant isolation checks without extra joins, and makes it trivial to move a dish between categories of the same restaurant.
+- **Ingredients:** bilingual (`namePt` / `nameEn`), allergen flag (`isAllergen`), and dietary tags (`VEGAN`, `VEGETARIAN`, `GLUTEN_FREE`, `LACTOSE_FREE`). Scoped per restaurant — owners manage their own ingredient list and reuse across dishes via `DishIngredient` join table.
 - Restaurant identified by `slug` in QR URL (`/menu/meu-restaurante`) — human-readable and stable
 - Only `available: true` dishes are returned to the public menu endpoint
 - Only `APPROVED` restaurants are served publicly
@@ -114,7 +144,7 @@ enum RestaurantStatus {
 **UI layout (mobile-first, shadcn):**
 - Header: restaurant logo + name
 - Sticky tabs at top: one tab per category (`shadcn/Tabs`)
-- Cards per dish: photo, name, short description, price
+- Cards per dish: photo, name, short description, price, ingredient list with allergen and dietary icons
 - No login required
 
 **QR code generation:** `qrcode` npm library. Generated in the back-office and displayed for the owner to download/print.
@@ -172,8 +202,11 @@ DATABASE_URL
 | `/dashboard/dishes` | List dishes with inline availability toggle |
 | `/dashboard/dishes/new` | Create dish |
 | `/dashboard/dishes/[id]/edit` | Edit dish |
+| `/dashboard/ingredients` | Manage ingredient list (create, edit, delete) |
 
-**Dish form fields:** name, description, price, photo (upload), category (select), available (switch).
+**Dish form fields:** name, description, price, photo (upload), category (select), available (switch), ingredients (multi-select from restaurant's ingredient list).
+
+**Ingredient form fields:** name in PT, name in EN, is allergen (toggle), dietary tags (multi-select: vegan, vegetarian, gluten-free, lactose-free).
 
 **Photo upload:** `multipart/form-data` to Fastify using `@fastify/multipart`. Files stored in `uploads/` directory locally in phase 1 — designed to migrate to S3 without API contract changes. Returns a public URL.
 
@@ -221,6 +254,9 @@ DATABASE_URL
 | DELETE | `/dishes/:id` | OWNER (own) | Delete dish |
 
 **"OWNER (own)" rule:** Fastify verifies that the restaurant referenced in the request belongs to the authenticated user. Requests targeting another owner's restaurant return `403 Forbidden`.
+| POST | `/ingredients` | OWNER (own) | Create ingredient |
+| PUT | `/ingredients/:id` | OWNER (own) | Update ingredient |
+| DELETE | `/ingredients/:id` | OWNER (own) | Delete ingredient |
 | POST | `/uploads` | OWNER | Upload dish photo |
 | PUT | `/restaurants/:id/status` | ADMIN | Approve / reject restaurant |
 | GET | `/restaurants` | ADMIN | List all restaurants |
