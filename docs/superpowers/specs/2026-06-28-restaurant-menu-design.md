@@ -1,0 +1,234 @@
+# Restaurant Menu Platform — Design Spec
+
+**Date:** 2026-06-28
+**Status:** Approved
+
+## Overview
+
+A platform where restaurant owners register their menu and customers scan a QR code to view it on their phones. Phase 1 is read-only menu viewing. Ordering will be added in a future phase.
+
+---
+
+## Architecture
+
+Two apps in the monorepo:
+
+- **`apps/web`** — Next.js 16 (App Router, RSC): public menu pages + back-office dashboard + admin panel
+- **`apps/api`** — Fastify 5: REST API, business logic, file uploads, database access via Prisma
+
+Authentication lives in Next.js via **NextAuth/Auth.js** (Google and Facebook providers). NextAuth issues a JWT signed with `NEXTAUTH_SECRET`. Every request from the web app to the Fastify API includes `Authorization: Bearer <token>`. Fastify has a `jwt` plugin that verifies the token using the shared secret and extracts `userId` and `role`.
+
+```
+apps/web (Next.js)                apps/api (Fastify)
+─────────────────────────────     ──────────────────────────────
+/menu/[slug]          ──────────▶ GET  /restaurants/:slug/menu
+/dashboard            ──────────▶ POST /restaurants
+/dashboard/categories ──────────▶ POST /categories
+/dashboard/dishes     ──────────▶ POST /dishes
+/admin                ──────────▶ PUT  /restaurants/:id/status
+                           │
+                      Prisma + PostgreSQL
+```
+
+---
+
+## Data Model
+
+```prisma
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  image       String?
+  role        Role         @default(OWNER)
+  restaurants Restaurant[]
+  createdAt   DateTime     @default(now())
+}
+
+model Restaurant {
+  id         String           @id @default(cuid())
+  name       String
+  slug       String           @unique
+  logoUrl    String?
+  status     RestaurantStatus @default(PENDING)
+  ownerId    String
+  owner      User             @relation(fields: [ownerId], references: [id])
+  categories Category[]
+  createdAt  DateTime         @default(now())
+}
+
+model Category {
+  id           String     @id @default(cuid())
+  name         String
+  order        Int        @default(0)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  dishes       Dish[]
+}
+
+model Dish {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
+  available   Boolean  @default(true)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+enum Role {
+  OWNER
+  ADMIN
+}
+
+enum RestaurantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+```
+
+**Key decisions:**
+- Restaurant identified by `slug` in QR URL (`/menu/meu-restaurante`) — human-readable and stable
+- Only `available: true` dishes are returned to the public menu endpoint
+- Only `APPROVED` restaurants are served publicly
+- `Category.order` allows manual reordering without drag-and-drop complexity
+
+---
+
+## Public Menu (QR Code Flow)
+
+**Route:** `/menu/[slug]` — fully public, no auth required
+
+1. QR code points to `https://plateon.app/menu/<slug>`
+2. Next.js SSR fetches `GET /restaurants/:slug/menu` from Fastify
+3. Fastify returns restaurant + categories + dishes where `available = true`
+4. If restaurant not found or status is not `APPROVED` → 404 page
+
+**UI layout (mobile-first, shadcn):**
+- Header: restaurant logo + name
+- Sticky tabs at top: one tab per category (`shadcn/Tabs`)
+- Cards per dish: photo, name, short description, price
+- No login required
+
+**QR code generation:** `qrcode` npm library. Generated in the back-office and displayed for the owner to download/print.
+
+---
+
+## Authentication
+
+**Provider:** NextAuth/Auth.js with Google and Facebook OAuth providers.
+
+**First login:**
+1. User visits `/auth/signin`, chooses Google or Facebook
+2. NextAuth uses `@auth/prisma-adapter` with its own Prisma connection to create/find the `User` record. `role` defaults to `OWNER` via a `signIn` callback that sets the field on first creation.
+3. Redirects to `/dashboard`
+
+**Note on DB connections:** Next.js (`apps/web`) has its own Prisma client used exclusively by NextAuth for session/user management. Fastify (`apps/api`) has its own Prisma client for all business logic. Both point to the same `DATABASE_URL`.
+
+**Subsequent logins:** NextAuth recognizes user by email, issues JWT, redirects to `/dashboard`.
+
+**JWT structure:** `{ userId, email, role }` signed with `NEXTAUTH_SECRET`.
+
+**Fastify integration:** Plugin `src/plugins/jwt.ts` verifies the JWT on every protected route. Exposes `app.authenticate` preHandler hook.
+
+**Required environment variables:**
+```
+# apps/web
+NEXTAUTH_SECRET
+NEXTAUTH_URL
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+FACEBOOK_CLIENT_ID
+FACEBOOK_CLIENT_SECRET
+NEXT_PUBLIC_API_URL
+
+# apps/api
+NEXTAUTH_SECRET   # shared with web for JWT verification
+DATABASE_URL
+```
+
+---
+
+## Restaurant Back-Office
+
+**Access:** authenticated, `role: OWNER` only.
+
+**Onboarding flow:** If the logged-in user has no restaurant, redirect to `/dashboard/restaurant/new`.
+
+**Pages:**
+
+| Route | Purpose |
+|---|---|
+| `/dashboard` | Overview: restaurant status, menu link, QR code download |
+| `/dashboard/restaurant` | Edit restaurant name, slug, logo |
+| `/dashboard/categories` | Create, rename, reorder categories (manual order field) |
+| `/dashboard/dishes` | List dishes with inline availability toggle |
+| `/dashboard/dishes/new` | Create dish |
+| `/dashboard/dishes/[id]/edit` | Edit dish |
+
+**Dish form fields:** name, description, price, photo (upload), category (select), available (switch).
+
+**Photo upload:** `multipart/form-data` to Fastify using `@fastify/multipart`. Files stored in `uploads/` directory locally in phase 1 — designed to migrate to S3 without API contract changes. Returns a public URL.
+
+**shadcn components:** `Form`, `Input`, `Textarea`, `Select`, `Switch`, `Button`, `Card`, `Badge` (restaurant status), `Dialog` (delete confirmation).
+
+**Dashboard banner:** While restaurant is `PENDING`, a banner informs the owner that approval is in progress and all dish management is disabled.
+
+---
+
+## Admin Approval Flow
+
+**Admin user:** Created via `prisma/seed.ts` — no UI for promoting users to admin in phase 1.
+
+**Pages:**
+
+| Route | Purpose |
+|---|---|
+| `/admin` | List of `PENDING` restaurants with Approve / Reject buttons |
+| `/admin/restaurants` | Full list filterable by status |
+
+**Approval flow:**
+1. Owner creates restaurant → status `PENDING`
+2. Admin visits `/admin` → sees pending list (name, owner email, created date)
+3. Clicks Approve → calls `PUT /restaurants/:id/status` with `{ status: "APPROVED" }`
+4. Owner sees updated status on next dashboard load
+
+**Protection:** Next.js `middleware.ts` blocks `/admin/*` for any session where `role !== ADMIN`. Fastify also checks `role === ADMIN` on the status endpoint (defense in depth).
+
+**Notifications:** Not in scope for phase 1. Owner checks dashboard manually. Easily extensible with Resend/SendGrid later.
+
+---
+
+## Fastify API Routes
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/restaurants/:slug/menu` | None | Public menu for QR code |
+| POST | `/restaurants` | OWNER | Create restaurant |
+| PUT | `/restaurants/:id` | OWNER (own) | Update restaurant |
+| POST | `/categories` | OWNER (own) | Create category |
+| PUT | `/categories/:id` | OWNER (own) | Update / reorder category |
+| DELETE | `/categories/:id` | OWNER (own) | Delete category |
+| POST | `/dishes` | OWNER (own) | Create dish |
+| PUT | `/dishes/:id` | OWNER (own) | Update dish |
+| DELETE | `/dishes/:id` | OWNER (own) | Delete dish |
+
+**"OWNER (own)" rule:** Fastify verifies that the restaurant referenced in the request belongs to the authenticated user. Requests targeting another owner's restaurant return `403 Forbidden`.
+| POST | `/uploads` | OWNER | Upload dish photo |
+| PUT | `/restaurants/:id/status` | ADMIN | Approve / reject restaurant |
+| GET | `/restaurants` | ADMIN | List all restaurants |
+
+---
+
+## Out of Scope (Phase 1)
+
+- Customer ordering
+- Email notifications on approval
+- Per-table QR codes
+- Multiple restaurants per owner
+- Drag-and-drop category reordering
+- S3 / cloud storage for images
+- Mobile app
