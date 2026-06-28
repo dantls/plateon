@@ -1,3 +1,6 @@
+import { join } from "node:path";
+
+import fastifyStatic from "@fastify/static";
 import fastify from "fastify";
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 
@@ -11,6 +14,7 @@ import { healthRoutes } from "./routes/health.js";
 import { ingredientRoutes } from "./routes/ingredients.js";
 import { menuRoutes } from "./routes/menu.js";
 import { restaurantRoutes } from "./routes/restaurants.js";
+import { uploadRoutes } from "./routes/uploads.js";
 
 export function buildApp() {
   const app = fastify({
@@ -32,6 +36,11 @@ export function buildApp() {
   void app.register(categoryRoutes);
   void app.register(dishRoutes);
   void app.register(ingredientRoutes);
+  void app.register(uploadRoutes);
+  void app.register(fastifyStatic, {
+    root: join(process.cwd(), "uploads"),
+    prefix: "/uploads/",
+  });
 
   return app;
 }

@@ -5,3 +5,6 @@ dist
 coverage
 
 /src/generated/prisma
+
+# Uploaded files (local storage)
+uploads
