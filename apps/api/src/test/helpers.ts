@@ -1,5 +1,7 @@
 import "@fastify/jwt";
 
+import { randomUUID } from "node:crypto";
+
 import type { FastifyInstance } from "fastify";
 
 import { buildApp } from "../app.js";
@@ -49,7 +51,7 @@ export async function seedUser(
 ): Promise<User> {
   return app.prisma.user.create({
     data: {
-      email: overrides.email ?? `user-${Date.now().toString()}@test.com`,
+      email: overrides.email ?? `user-${randomUUID()}@test.com`,
       role: overrides.role ?? "OWNER",
     },
   });
@@ -67,7 +69,7 @@ export async function seedRestaurant(
   return app.prisma.restaurant.create({
     data: {
       name: "Test Restaurant",
-      slug: overrides.slug ?? `test-${Date.now().toString()}`,
+      slug: overrides.slug ?? `test-${randomUUID()}`,
       currency: overrides.currency ?? "BRL",
       status: overrides.status ?? "APPROVED",
       ownerId,
